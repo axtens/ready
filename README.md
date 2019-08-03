@@ -7,4 +7,4 @@ TSBASIC could be used to make TSR (Terminate Stay Resident) programs but I never
 
 One of the downsides of TSRBASIC was its insistence on line numbers. I found some code that would let me mark GOTO and GOSUB destinations with labels in square brackets. You can see that code in READY.RDY. So I would make a READY.EXE which would convert scripts written in .RDY format into .BAS format and then hand the off to TSRBASIC.EXE for binding.
 
-This was back in 1993. After that I discovered Modula-2 and started converting everything to that. The idea was to convert all these tools to Modula-2. That conversion will likely never happen.
+This was back in 1993. After that I discovered Modula-2 and started converting everything to that. The idea was to convert all these tools to Modula-2. That conversion started but didn't finish and likely never will.
