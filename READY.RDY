@@ -1,0 +1,132 @@
+		STAR = "*"
+		NULL = ""
+		HTAB = chr(9)
+		SPAC = chr(32)
+		CR	 = chr(13)
+
+		goto [main]
+[getL]	gl=2
+[getL2] if mid(getlabelrec,gl,1) = closebracket
+		then
+				vector(labelcount,1)=mid(getlabelrec,2,gl-2)
+				vector(labelcount,2)=lineno
+		else
+				gl=gl+1
+				goto [getL2]
+		end if
+		return
+[chopR] chopR=mid(chopR,2)
+		c=instr(chopR,closebracket)
+		chopR=mid(chopR,c+1)
+		return
+[findL] for m = 1 to labelcount
+		if tofind=vector(m,1)
+		then
+				found=vector(m,2)
+				m=labelcount
+		end if
+		next m
+		return
+[main]	if argc() < 1
+		then
+				print "Usage:"
+				print "       READY <filename>"
+				end
+		end if
+		dim vector(200,2)
+		lineno=90
+		linestep=10
+		labelcount=0
+		null=NULL
+		openbracket="["
+		closebracket="]"
+		fname = argv (1)
+		j = instr(fname,".")
+		if j <> 0
+		then
+				fname = left(fname,j-1)
+		end if
+		srcname = fname + ".RDY"
+		dstname = fname + ".BAS"
+		exename = fname + ".EXE"
+		if access(srcname) = 0
+		then
+				print "Could not open ";srcname
+				end
+		end if
+		print "Acting on ";srcname;", producing ";exename
+		dim prog(1000)
+		lincnt = 0
+		print "Pass 1 ";
+		open #1, "r", srcname
+		rec=space(255)
+[p1]	if not eof(1)
+		then
+			line input #1, rec
+			ltrim=parse(rec,NULL,NULL,SPAC+HTAB,CR)
+			if ltrim<>NULL and left(ltrim,1) <> STAR
+			then
+				lincnt = lincnt + 1
+				prog(lincnt)=ltrim
+			end if
+			goto [p1]
+		end if
+		close #1
+
+		lineno=100
+		print "2 ";
+[p2]	for i = 1 to lincnt
+			rec = prog(i)
+			if left(rec,1)=openbracket
+			then
+				labelcount=labelcount+1
+				getlabelrec=rec
+				gosub [getL]
+			end if
+			lineno=lineno+linestep
+		next i
+
+		print "3 ";
+		open #2, "w", dstname
+		lineno=100
+		rec=space(255)
+[p3]	for i = 1 to lincnt
+			rec = prog(i)
+			if left(rec,1)=openbracket
+			then
+				chopR=rec
+				gosub [chopR]
+				rec=chopR
+				ltrim=parse(rec,NULL,NULL,SPAC+HTAB,CR)
+				rec=ltrim
+				if rec=NULL then rec="REM"
+			end if
+			reclen=len(rec)
+			quoting=0
+			for j = 1 to reclen
+				if mid(rec,j,1)=chr(34) then quoting=not quoting
+				if quoting=0 and mid(rec,j,1)=openbracket
+				then
+					leftpart=mid(rec,1,j-1)
+					rec=mid(rec,j+1)
+					k=instr(rec,closebracket)
+					tofind=left(rec,k-1)
+					rec=mid(rec,k+1)
+					found=NULL
+					gosub [findL]
+					rec=leftpart+found+rec
+					reclen=len(rec)
+				else
+				end if
+			next j
+			print #2,lineno+SPAC+rec
+			lineno=lineno+linestep
+		next i
+		close #2
+[p4]	print "4 "
+		if access(fname+".VER") <> 0 then shell "echo merge "+fname+".VER >>"+dstname
+		shell "echo link "+fname+">>"+dstname
+		shell "echo quit>>"+dstname
+		shell "tsrbasic "+dstname+" -p900 >nul"
+		end
+

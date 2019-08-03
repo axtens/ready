@@ -1,0 +1,86 @@
+    if argc() <> 3
+    then
+        print "usage:"
+        print "       INCLUDE <include-marker> <inputfile> <outputfile>"
+        end
+    end if
+    inclmark=argv (1)
+    incllen=len(inclmark)
+    loadfile = argv(2)
+    loadbuff = 2
+    outfile = argv (3)
+    open #1, "w", outfile
+    gosub [include]
+    end
+[include]
+    print "Loading "+loadfile+" (#"+loadbuff+") to "+outfile
+[trim]
+    rec=space(255)
+    open #loadbuff,"r",loadfile
+[reader]  if not eof(loadbuff)
+    then
+        line input #loadbuff, rec
+        firstrec=rec
+        gosub [First Second]
+        if FirstWord = inclmark
+        then
+            firstrec=LastWords
+            gosub [First Second]
+            loadbuff = loadbuff + 1
+            loadfile = FirstWord
+            if LastWords <> "" then print "Parameters to include ";LastWords
+            gosub [include]
+            loadbuff = loadbuff - 1
+        else
+            print #1, rec
+        end if
+        goto [reader]
+    end if
+    close #loadbuff
+    return
+
+
+[First Second]
+    i = 1
+    ct = ""
+    quoter="'`"+chr(34)
+    spacer=CHR(32)+CHR(9)
+    tmp=firstrec
+    firstrec=parse(tmp,"",""," ",chr(13))
+
+    q = instr(quoter,MID(firstrec,i,1))
+    if q = 0
+    then
+        'is not quoted
+[noqt]  if INSTR(spacer,MID(firstrec,i,1)) = 0 and (i <= LEN(firstrec))
+        then
+            i = i + 1
+            goto [noqt]
+        end if
+        if instr(spacer,MID(firstrec,i,1)) = 0
+        then
+            FirstWord = firstrec
+            LastWords= ""
+        else
+            FirstWord = LEFT(firstrec,i-1)
+            LastWords= MID(firstrec,i+1)
+        end if
+    else
+        i = i+1
+        cQ=MID(quoter,q,1)
+[q]     if (MID(firstrec,i,1) <> cQ) and i <= LEN(firstrec)
+        then
+            i = i+1
+            goto [q]
+        end if
+        if MID(firstrec,i,1) <> MID(quoter,q,1)
+        then
+            FirstWord = MID(firstrec,2,i)
+            LastWords = ""
+        else
+            FirstWord = MID(firstrec,2,i-2)
+            LastWords = MID(firstrec,i+1)
+        end if
+    end if
+return
+

@@ -1,0 +1,199 @@
+	  NULL = ""
+	  SPAC = CHR(32)
+	  SEMI = ";"
+
+	  dim todos(10)
+	  if argc () > 0
+	  then
+		todolist=argv (1)
+		pos=instr(todolist,".")
+		if pos>0
+		then
+			workinglist = left(todolist,pos-1)
+		else
+			workinglist = left(todolist,8)
+		end if
+	  else
+		workinglist="TODOLIST"
+	  end if
+
+	  ucaserec=workinglist
+	  gosub [UPR]
+	  workinglist=ucaserec
+
+	  datafile = workinglist + ".TDL"
+	  path = environ("PATH")
+
+[PRS] subpath = parse(path,NULL,NULL,NULL,SEMI)
+	  if len(subpath) > 0
+	  then
+		 if right(subpath,1)<>"\" then subpath=subpath+"\" 
+		 search = subpath+datafile
+		 if access(search)>0 then goto [FND] 'found it!
+		 goto [PRS] 'keep parsing
+	  end if
+	  subpath = environ("TODO")
+	  if len(subpath) > 0
+	  then
+		 if right(subpath,1)<>"\" then subpath=subpath+"\" 
+		 search = subpath+datafile
+		 if access(search) > 0 then goto [FND] 'found it at last!
+	  end if
+	  print "Error:"
+	  print " The data file ";datafile;" was not found on PATH,"
+	  print " nor was it found through the TODO environment variable."
+	  print
+	  print " What to do:"
+	  print "  1. The file may not exist. Use a text editor to create it."
+	  print
+	  print "  2. Modify the PATH to point to the directory containing file."
+	  print
+	  print "  3. Specify the TODO environment variable to point to the"
+	  print "     directory containing the file."
+	  print
+	  end
+[FND] 'gosub [MNU]
+	  datafile = search
+	  donefile = subpath+workinglist+".TDD"
+	  tempfile = subpath+workinglist+".$$$"
+	  gosub [SCN] 'scanner
+[RD1] open #1,"r",datafile
+	  cls
+[IN1] if not eof(1)
+	  then
+		 line input #1, r
+		 print r
+		 goto [IN1]
+	  end if
+	  close #1
+	  locate 24,0
+	  print "[";workinglist;"] E(dit, P(rint, C(hange or Q(uit ";
+	  key = getkey()
+	  code = key & 0xff
+	  if code = asc("Q") or code = asc("q")
+	  then
+		 gosub [KEY] 'print keystroke
+		 end
+	  end if
+	  if code = asc("P") or code = asc("p")
+	  then
+		 gosub [KEY] 'print keystroke
+		 gosub [PRT] 'print file
+	  end if
+	  if code = asc("E") or code = asc("e")
+	  then
+		 gosub [KEY] 'print keystroke
+		 gosub [EDT] 'edit file
+		 gosub [SCN] 'rescan
+	  end if
+	  if code = asc("C") or code = asc("c")
+	  then
+		 'gosub [CHG]
+		 gosub [MNU]
+		 gosub [SCN]
+	  end if
+	  goto [RD1]
+[PRT] shell "copy "+datafile+" lpt2"
+			 shell "echo "+chr(12)+">lpt2"
+	  return
+[EDT] editor = environ("TD$ED")
+	  if len(editor)=0 then editor = "c:\dos\edit"
+	  shell editor+SPAC+datafile
+	  return
+[KEY] print chr(code);
+	  return
+	  rem rescan in here
+[CHG] cls
+	  shell "dir "+subpath+"*.TDL /W"
+	  print
+	  print "Enter name of todo list: ";
+	  input arg
+	  if arg=NULL
+	  then
+		 workinglist = "TODOLIST"
+	  else
+		 x=instr(arg,".")
+		 if x=0
+		 then
+			 workinglist = arg
+		 else
+			 workinglist = left(arg,x-1)
+		 end if
+	  end if
+	  datafile = subpath+workinglist + ".TDL"
+	  donefile = subpath+workinglist + ".TDD"
+	  return
+
+[ERR] print erl(), erm(), err()
+	  resume next
+[SCN] rem scanner
+	  open #1, "r", datafile
+	  open #2, "w", tempfile
+	  open #3, "a", donefile
+[IN2] if not eof (1)
+	  then
+		 line input #1, todorectmp
+		 todorec=parse(todorectmp,NULL,NULL,SPAC,chr(13))
+		 if left(todorec,1) = "#"
+		 then
+			 print #3, date(); SPAC; mid(todorec,2)
+		 else
+			 print #2, todorec
+		 end if
+		 goto [IN2]
+	  end if
+	  close #1
+	  close #2
+	  close #3
+	  execute "kill "+datafile
+	  shell "sort <"+tempfile+" >"+datafile
+	  execute "kill "+tempfile
+	  return
+[MNU] shell "dir "+subpath+"*.TDL /B >"+subpath+"TODO.$$$"
+	  open #1, "r",subpath+"TODO.$$$"
+	  lc=0
+[IN3] if not eof(1)
+	  then
+		line input #1, rec
+		pos=instr(rec,".")
+		if pos>0
+		then
+			rec=left(rec,pos-1)
+		end if
+		lc=lc+1
+		todos(lc)=rec
+		goto [IN3]
+	  end if
+	  close #1
+	  cls
+	  locate 1,36
+	  print "TODOLIST"
+	  row 3
+	  for i = 1 to lc
+		column 35
+		print i;". ";todos(i)
+	  next i
+	  print
+	  print "Selection [Q=quit]: ";
+	  input sel
+	  if sel="Q" or sel="q" then end
+	  if sel>=1 and sel<=lc
+	  then
+		workinglist = todos(sel)
+	  else
+		end
+	  end if
+	  datafile = subpath+workinglist+".TDL"
+	  tempfile = subpath+workinglist+".$$$"
+	  donefile = subpath+workinglist+".TDD"
+	  return
+[UPR] ucaselen=len(ucaserec)
+	  for ui=1 to ucaselen
+		c=mid(ucaserec,ui,1)
+		if c>="a" and c<="z"
+		then
+			ucaserec=strovr(ucaserec,ui,chr( asc(c) - 32))
+		end if
+	  next ui
+	  return
+

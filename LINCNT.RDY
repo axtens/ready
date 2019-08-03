@@ -1,0 +1,21 @@
+    if argc() <> 1
+    then
+        print "usage: lincnt <file>"
+        end
+    end if
+    open #1, "r", argv (1)
+    cnt = 0
+    max=0
+    rec=space(255)
+[read] if not eof (1)
+    then
+        line input #1, buf
+        buflen=len(buf)
+        if buflen>max then max=buflen
+        cnt = cnt + 1
+        goto [read]
+    end if
+    close #1
+    print "Lines: "+cnt
+    print "Longest: "+max
+

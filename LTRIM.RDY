@@ -1,0 +1,33 @@
+if argc() <> 2
+   then
+	  print "usage: ltrim <inputfile> <outputfile>"
+	  end
+end if
+infile=argv (1)
+outfile=argv (2)
+if access(infile)=0
+then
+	print "Cannot open ";infile
+	end
+end if
+open #1, "r", infile
+open #2, "w", outfile
+rec=space(255)
+[read] if not eof (1)
+   then
+	  line input #1, buf
+	  ltrimrec=buf
+	  gosub [ltrim]
+	  buf=ltrimrec
+	  print #2, buf
+	  goto [read]
+end if
+close #1
+close #2
+end
+
+[ltrim]
+	  newltrimrec=parse(ltrimrec,"",""," "+chr(9),chr(13))
+	  ltrimrec=newltrimrec
+	  return
+

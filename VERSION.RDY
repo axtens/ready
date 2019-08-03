@@ -1,0 +1,286 @@
+[a] tilde="~"
+    dquote=chr(34)
+    groupname=""
+    editor=""
+    language=""
+    copyright=""
+    extension=""
+
+    fname=""
+    fext=""
+
+[b] if argc () < 1
+    then
+        print "Version <filename> [<groupname>] [/NOEDIT]"
+        end
+    end if
+
+[c] groupflag = 0
+    slashflag = 0
+    slashcode = ""
+    if argc () > 1
+    then
+        if left(argv (2),1)="/"
+        then
+            groupflag = 0
+            slashflag = 1
+            slashcode = argv (2)
+        else
+            groupflag = 1
+            groupname = argv (2)
+            if argc () > 2
+            then
+                if left( argv (3),1) = "/"
+                then
+                    slashflag = 1
+                    slashcode = argv (3)
+                end if
+            end if
+
+        end if
+
+    end if
+    noedit = 0
+    if slashflag=1
+    then
+        if mid(slashcode,2,1) = "n" or mid(slashcode,2,1)="N"
+        then
+            noedit = 1
+        end if
+    end if
+
+
+[e] gosub [read .ini file]
+
+    ucaserec = argv (1)
+    gosub [ucase]
+    filename = ucaserec
+
+[d] j = instr(filename,".")
+    if j <> 0
+    then
+      fname = left(filename,j-1)
+      fext = mid(filename,j)
+    else
+        if extension=""
+        then
+            print "Need extension on filename"
+            end
+        else
+            fname=filename
+            fext=extension
+        end if
+    end if
+    srcname = fname + fext
+    bakname = fname + ".BAK"
+
+    if editor = ""
+    then
+        print "'editor' not set in VERSION.INI"
+        end
+    end if
+
+    if copyright = ""
+    then
+        copyright="(c) Copyright Bruce M. Axtens, 1993"
+    end if
+
+[f] if groupname = ""
+    then
+        grplog = fname + ".VLG"
+        grpzip = fname + ".ZIP"
+        groupflag = 0
+    else
+        ucaserec = groupname
+        gosub [ucase]
+        groupname = ucaserec
+
+        grplog = left(groupname,8)+".VLG"
+        grpzip = left(groupname,8)+".ZIP"
+        groupflag = 1
+    end if
+
+
+    if noedit = 0 then shell editor+" "+srcname
+    if access(bakname) = 0
+    then
+      print "Could not open ";bakname;". Assuming no changes done."
+      end
+    end if
+    print "Storing previous version details of ";srcname;" in ";grplog
+    print "Storing previous version of ";srcname;" in ";grpzip
+    gosub [make dirname]
+    execute "mkdir "+dirname
+    open #1,"r",bakname
+    open #2,"w",dirname+"\"+srcname
+[loop]
+    if not eof(1)
+    then
+        line input #1, r
+        print #2,r
+        goto [loop]
+    end if
+    close #1
+    close #2
+    execute "kill "+bakname
+    if access(grplog)=0
+    then
+        open #1,"w",grplog
+        close #1
+    end if
+    print "Changes: ";
+    changes=""
+    input changes
+    outline=srcname+tilde+datestr+tilde+timestr+tilde+dirname+tilde+changes
+    shell "echo "+outline+">>"+grplog
+    shell "pkzip -m -r -P "+grpzip+" "+dirname+"\*.* >nul"
+[version numbers]
+    if groupflag = 1
+    then
+        vername = left(groupname,8)
+    else
+        vername = fname
+    end if
+    vernamefile = vername + ".VER"
+    if access(vernamefile)=0
+    then
+        open #1, "w", vernamefile
+        print #1, "*,1,0,0"
+        close #1
+    end if
+    print "Storing version details in ";vernamefile
+    open #1,"r",vernamefile
+    line input #1, verrec
+    mark=parse(verrec,"","",",")
+    majver=parse(verrec,"","",",")
+    minver=parse(verrec,"","",",")
+    subver=verrec
+    'input #1,mark;majver;minver;subver
+    close #1
+    subver=0
+    minver=minver+1
+    if minver>99
+    then
+        majver=majver+1
+        minver=0
+    end if
+    open #1,"w",vernamefile
+    comma=","
+    'language = environ("VLANG")
+    if language <> ""
+    then
+        if language = "XBASE"
+        then
+            gosub [xbase]
+        end if
+        if language = "CLIPPER"
+        then
+            gosub [clipper]
+        end if
+        if language = "BASIC"
+        then
+            gosub [basic]
+        end if
+    else
+        gosub [basic]
+    end if
+    close #1
+    if language = "XBASE" then shell "copy "+vernamefile+" version.prg"
+    end
+
+[xbase]
+    mark="*"
+    print #1,mark;comma;majver;comma;minver;comma;subver
+    print #1,"PRIV nMajVer, nMinVer, cProgName, cEditDate, cFlagWave"
+    print #1,"cProgName = UPPER(["+vername+"])"
+    print #1,"nMajVer   = ";majver
+    print #1,"nMinVer   = ";minver
+    print #1,"cEditDate = [";date();"]"
+    print #1,"cFlagWave = cProgName+[ v";majver;".";minver;" (";date();")]"
+    print #1,"?? cProgName+";dquote;" v";majver;".";minver;space(1);copyright;dquote
+    return
+
+[clipper]
+    mark="*"
+    print #1,mark;comma;majver;comma;minver;comma;subver
+    print #1,"PUBLIC nMajVer := ";majver
+    print #1,"PUBLIC nMinVer := ";minver
+    print #1,"PUBLIC cProgName := '";vername;"'"
+    print #1,"PUBLIC cVersion  := '";majver;".";minver;"'"
+    print #1,"PUBLIC cCopyright:= '";copyright;"'"
+    print #1,"PUBLIC cProgVer  := cProgName+[ V]+cVersion"
+    print #1,"QQOUT(cProgVer+space(1)+cCopyright)"
+    return
+
+[basic]
+    mark = "'"
+    print #1,"1 ";mark;comma;majver;comma;minver;comma;subver
+    print #1,"2 ";"cProgName = ";dquote;vername;dquote
+    print #1,"3 ";"nMajVer   = ";majver
+    print #1,"4 ";"nMinVer   = ";minver
+    print #1,"6 '";"cEditDate = ";dquote;date();dquote
+    print #1,"7 '";"cFlagWave = cProgName+";dquote;" v";majver;".";minver;" (";date();")";dquote
+    print #1,"8 print ";"cProgName+";dquote;" v";majver;".";minver;space(1);copyright;dquote
+    return
+
+[read .ini file]
+    if access("VERSION.INI") = 0
+    then
+        return
+    end if
+    open #1, "r", "VERSION.INI"
+[1] if not eof(1)
+    then
+        line input #1, rec
+[2]     x=instr(rec,tilde)
+        if x <> 0
+        then
+            rec = strovr(rec,x,dquote)
+            goto [2]
+        end if
+        execute rec
+        goto [1]
+     end if
+     close #1
+     return
+
+
+
+
+
+
+
+
+[make dirname]
+    n="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    '
+    datestr=date()
+    timestr=time()
+    '
+    day=mid(datestr,4,2)
+    mon=left(datestr,2)
+    yar=right(datestr,2)
+    '
+    hh=left(timestr,2)
+    mm=mid(timestr,4,2)
+    ss=right(timestr,2)
+    '
+    dn1=mid(n,day+1,1)
+    dn2=mid(n,mon+1,1)
+    dn3=mid(n,yar-80+1,1)
+    dn4=mid(n,hh+1,1)
+    '
+    dirname = dn1+dn2+dn3+dn4+mm+ss
+    return
+    '
+[ucase]
+        ucaselen=len(ucaserec)
+        for ui=1 to ucaselen
+            c=mid(ucaserec,ui,1)
+            if c>="a" and c<="z"
+            then
+                ucaserec=strovr(ucaserec,ui,chr( asc(c) - 32))
+            end if
+        next ui
+        return
+

@@ -1,0 +1,12 @@
+	if argc () < 1
+	then
+		print "SimCalc <expression>"
+		goto [e]
+	end if
+	express = ""
+	for i = 1 to argc ()
+		express = express + " " + argv (i)
+	next i
+	execute "print " + express
+[e] end
+

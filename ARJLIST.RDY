@@ -1,0 +1,38 @@
+	shell "dir *.arj /b >TMP.dat"
+	dim tmp(300)
+	lc=0
+	open #1,"r","tmp.dat"
+[1] if not eof(1)
+	then
+		line input #1, arjname
+		if arjname="" then goto [1]
+		lc=lc+1
+		tmp(lc)=arjname
+		goto [1]
+	end if
+	close #1
+	execute "kill tmp.dat"
+	open #1, "w", "arjlist.txt"
+	for i = 1 to lc
+		arjname=tmp(i)
+		pos=instr(arjname,".")
+		lstfile=left(arjname,pos)+"LST"
+		if access(lstfile) <> 0 then execute "kill "+lstfile
+		shellcmd= "arj l "+arjname+" -ji"+lstfile+" >nul"
+		print shellcmd
+		shell shellcmd
+		open #2, "r", lstfile
+		line input #2, rec2
+		line input #2, rec2
+[2]		if not eof(2)
+		then
+			line input #2, rec2
+			print #1, chr(34)+rec2 + chr(34)+","+chr(34)+arjname+chr(34)
+			goto [2]
+		end if
+		close #2
+
+	next i
+	close #1
+	end
+

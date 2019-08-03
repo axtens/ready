@@ -1,0 +1,17 @@
+if argc() <> 3
+   then
+      print "usage: removetx <text-to-remove> <inputfile> <outputfile>"
+      end
+end if
+open #1, "r", argv (2)
+open #2, "w", argv (3)
+rec=space(255)
+[read] if not eof (1)
+   then
+      line input #1, buf
+      if instr(buf,argv (1)) < 1 then print #2, buf
+      goto [read]
+end if
+close #1
+close #2
+

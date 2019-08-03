@@ -1,0 +1,220 @@
+100 '************** THE STOPGAP EDITOR IN IBM BASIC **************
+110 '         ***** by D.E. Cortesi
+120 DEFINT A-Z : nMaxLines = 300 : nMaxWidth = 79 :' nMaxWidth=40 FOR COLOR TV
+130 GOTO [INIT]
+140 ' ::: right-arrow key: move cursor right
+[RTARKY] IF nCol=nMaxWidth THEN RETURN
+160 nCol=nCol+1 : INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+170 ' ::: left-arrow key: move cursor left
+[LFARKY] IF nCol=1 THEN RETURN
+190 nCol=nCol-1 : INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+200 ' ::: tab key: jump right from one to eight columns
+[TAB KY] S=((nCol+8) AND (-8))+1 : IF S<=nMaxWidth THEN nCol=S
+220 INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+230 ' ::: end key: go to right end of the current line
+[END KY] nCol=nMaxWidth : INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+250 ' ::: printable character, action depends on INSCHAR
+[PRTCHR] IF NOT lLineMod THEN L$=LT$(nCurLin) : lLineMod=TRUE
+270 IF NOT INSCHAR THEN MID$(L$,nCol,1)=cTemp : GOTO [PRTCH2]
+280 cTemp=cTemp+MID$(L$,nCol,nMaxWidth-nCol)
+290 L$=LEFT$(L$,nCol-1)+cTemp
+[PRTCH2] PRINT cTemp; : IF nCol<nMaxWidth THEN nCol=nCol+1
+310 LOCATE nRow,nCol,1 : RETURN
+320 ' ::: backspace: blank current character, move left
+[BS KEY] IF NOT lLineMod THEN L$=LT$(nCurLin) : lLineMod=TRUE
+340 MID$(L$,nCol,1)=" " : PRINT " ";
+350 IF nCol>1 THEN nCol=nCol-1
+360 INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+370 ' ::: del key: kill current char, pull rest left
+[DELKEY] IF NOT lLineMod THEN L$=LT$(nCurLin) : lLineMod=TRUE
+390 cTemp=RIGHT$(L$,nMaxWidth-nCol)+" " : PRINT cTemp;
+400 L$=LEFT$(L$,nCol-1)+cTemp
+410 INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+420 ' ::: if current line has changed, update the file
+[UPDTFL] INSCHAR=FALSE : LOCATE ,,1,nScanLine : IF NOT lLineMod THEN RETURN
+440 lFileMod=lLineMod : LT$(nCurLin)=L$ : lLineMod=FALSE : RETURN
+450 ' ::: return the index of the next free line in L
+[NXFRLN] IF LFREE=0 THEN L=FALSE : RETURN : 'NO FREE LINES LEFT
+470 L=LFREE : LFREE=LF(L) : LF(L)=0 : LT$(L)=LMT$ : RETURN
+480 ' ::: free the line whose index is in L
+[FRLN L] LF(L)=LFREE : LFREE=L : LT$(L)="" : RETURN
+500 ' ::: forward one line in the file image
+[FD1LIN] GOSUB [UPDTFL] : L=LF(nCurLin) : ' L=0 IF nCurLin IS BOTTOM LINE
+520 IF L=0 THEN GOSUB [NXFRLN] : IF L THEN LF(nCurLin)=L : LB(L)=nCurLin
+530 IF L THEN nCurLin=L :' FALSE IF BOTTOM AND NO FREE LINES
+540 RETURN
+550 ' ::: backward one line in the file image
+[BK1LIN] GOSUB [UPDTFL]: L=LB(nCurLin)
+570 IF L THEN nCurLin=L :' FALSE IF TOP LINE
+580 RETURN
+590 ' ::: enter key: cursor to left margin, then down
+[ENTKEY] nCol=1
+610 ' ::: down-arrow: cursor down (data up, on line 24)
+[DNARKY] Q=nCurLin : GOSUB [FD1LIN] : IF Q=nCurLin THEN RETURN
+630 nRow=nRow+1 : IF nRow<25 THEN LOCATE nRow,nCol,1 : RETURN
+640 nRow =24 : PRINT :' FORCE BLANK LINE, RETURN CURSOR
+650 PRINT LT$(nCurLin); : LOCATE nRow,nCol,1 : RETURN
+[UPARKY] ' ::: up-arrow: cursor up (data down 23 lines, on line 1)
+[UPARKY] IF nRow= 1 THEN [UPARL1]
+680 Q=nCurLin : GOSUB [BK1LIN] : IF Q=nCurLin THEN RETURN
+690 nRow=nRow-1 : LOCATE nRow,nCol,1 : RETURN
+700 ' ::: up-arrow on line 1: slide current line down 23
+[UPARL1] GOSUB [TOPBOT] : S=0
+720 WHILE (S<22) AND LB(T) : T=LB(T) : B=LB(B) : S=S+1 : WEND
+730 nRow=nRow+S : GOTO [REDRAW]
+740 ' ::: PgUp key: back up 23 lines, hold cursor still
+[PGUPKY] GOSUB [UPDTFL] : GOSUB [TOPBOT] : S=0
+760 WHILE (S<23) AND LB(T) : GOSUB [BK1LIN] : T=LB(T) : B=LB(B) : S=S+1 : WEND
+770 GOTO [REDRAW]
+780 ' ::: PgDn key: ahead 23 line, hold cursor still
+[PGDNKY] GOSUB [UPDTFL] : GOSUB [TOPBOT] : S=0
+800 WHILE (S<23) AND LF(B) : GOSUB [FD1LIN] : T=LF(T) : B=LF(B) : S=S+1 : WEND
+810 GOTO [REDRAW]
+820 ' ::: Home key: go to left, then to top, then to bottom
+[HOMKEY] IF nCol>1 THEN nCol=1 : INSCHAR=FALSE : LOCATE nRow,nCol,1,nScanLine : RETURN
+840 GOSUB [UPDTFL] : GOSUB [TOPBOT] : S=nRow
+850 IF nRow=1 THEN WHILE nCurLin<>B : GOSUB [FD1LIN] : S=S+1 : WEND
+860 IF nRow>1 THEN WHILE nCurLin<>T : GOSUB [BK1LIN] : S=S-1 : WEND
+870 nRow=S : LOCATE nRow,nCol,1 : RETURN
+880 ' ::: control-a: go to top of the file
+[CTRL A] GOSUB [UPDTFL] : GOSUB [TOPBOT] : nCurLin=A
+900 nRow=1 : nCol=1 : GOSUB [TOPBOT] : GOTO [REDRAW]
+910 ' ::: control-z: go to the end of the file
+[CTRL Z] GOSUB [UPDTFL] : GOSUB [TOPBOT] : nCurLin=Z : T=Z : B=Z : S=1
+930 WHILE LB(T) AND S<24 : T=LB(T) : S=S+1 : WEND
+940 nRow=S : nCol=1 : GOTO [REDRAW]
+950 ' ::: find the lines now at the top(T) and bottom(B) of the screen
+[TOPBOT] S=nRow : T=nCurLin
+970 WHILE (S>1) AND LB(T) : S=S-1 : T=LB(T) : WEND
+980 S=nRow : B=nCurLin
+990 WHILE (S<24) AND LF(B) : S=S+1 : B=LF(B) : WEND
+1000 RETURN
+1010 ' ::: redraw the screen using lines from T to B
+[REDRAW] CLS : L=T
+1030 WHILE L<>B : PRINT LT$(L) : L=LF(L) : WEND
+1040 PRINT LT$(B);
+1050 LOCATE nRow,nCol,1 : RETURN
+1060 ' ::: Ins key: toggle insert-character mode
+[INSKEY] INSCHAR=NOT INSCHAR
+1080 IF INSCHAR THEN LOCATE ,,1,nScanLine,1 ELSE LOCATE ,,1,nScanLine
+1090 RETURN
+1100 ' ::: control-o: split the file for bulk insertion
+[CTRL O] IF lInsert OR LF(nCurLin)=0 OR LFREE=0 THEN RETURN
+1120 GOSUB [UPDTFL] : LINS=nCurLin : nCurLin=LB(nCurLin)
+1130 IF nCurLin THEN LF(nCurLin)=0 : GOSUB [FD1LIN]
+1140 IF nCurLin=0 THEN GOSUB [NXFRLN] : LB(L)=0 : nCurLin=L
+1150 lInsert=TRUE : GOSUB [TOPBOT] : GOTO [REDRAW]
+1160 ' ::: control-c: splice the file after bulk insert
+[CTRL C] IF NOT lInsert THEN RETURN
+1180 GOSUB [UPDTFL] : WHILE LF(nCurLin) : nCurLin=LF(nCurLin) : WEND
+1190 LF(nCurLin)=LINS : LB(LINS)=nCurLin
+1200 IF LT$(nCurLin)<>LMT$ THEN 1240
+1210 L=nCurLin : nCurLin=LF(nCurLin) : LB(nCurLin)=LB(L)
+1220 IF LB(L) THEN LF(LB(L))=nCurLin
+1230 GOSUB [FRLN L]
+1240 lInsert=FALSE : GOSUB [TOPBOT] : GOTO [REDRAW]
+1250 ' ::: control-d: delete the current line
+[CTRL D] IF LF(nCurLin)+LB(nCurLin)=0 THEN RETURN :'CAN'T DELETE ONLY LINE
+1270 IF LB(nCurLin) THEN LF(LB(nCurLin))=LF(nCurLin)
+1280 IF LF(nCurLin) THEN LB(LF(nCurLin))=LB(nCurLin)
+1290 L=nCurLin : IF LF(L)>0 THEN nCurLin=LF(L)
+1300 IF LF(L)=0 THEN nCurLin=LB(L) : IF nRow>0 THEN nRow=nRow-1
+1310 GOSUB [FRLN L] : GOSUB [TOPBOT] : GOTO [REDRAW]
+1320 ' **************** THE MAIN LOOP ******************************
+[MAINLP] cTemp=INKEY$ : ON 1+LEN(cTemp) GOTO [MAINLP],[REGUKY],[SPECKY]
+1340 'handle a special key (numeric pad, Ins, Del)
+[SPECKY] S=ASC(RIGHT$(cTemp,1)) : IF S<71 OR S>83 THEN [MAINLP]
+1360 ON S-70 GOSUB [HOMKEY],[UPARKY],[PGUPKY],[MAINLP],[LFARKY],[MAINLP],[RTARKY],[MAINLP],[END KY],[DNARKY],[PGDNKY],[INSKEY],[DELKEY]
+1370 GOTO [MAINLP]
+1380 'handle regular control or character key
+[REGUKY] S=ASC(cTemp) : IF S>31 THEN GOSUB [PRTCHR] : GOTO [MAINLP]
+1400 IF S=>8 AND S<=13 THEN ON S-7 GOSUB [BS KEY],[TAB KY],[DNARKY],[HOMKEY],[MAINLP],[ENTKEY] : GOTO [MAINLP]
+1410 IF S=1 THEN GOSUB [CTRL A] : GOTO [MAINLP]
+1420 IF S=3 THEN GOSUB [CTRL C] : GOTO [MAINLP]
+1430 IF S=4 THEN GOSUB [CTRL D] : GOTO [MAINLP]
+1440 IF S=15 THEN GOSUB [CTRL O] : GOTO [MAINLP]
+1450 IF S=26 THEN GOSUB [CTRL Z] : GOTO [MAINLP]
+1460 IF S=27 THEN GOSUB [GLOB2] : GOTO [MAINLP]
+1470 GOTO [MAINLP]
+1480 ' ************** INITIALIZATION ****************************
+[INIT] GOSUB [CLRVAR] : cFileSpec="" :'CLEAR ALL DATA AND SET UP
+1500 nScanLine : LOCATE nRow,nCol,1 : GOTO [MAINLP]
+1510 ' ::: clear all variables, set up a null data array
+[CLRVAR] DIM LF(nMaxLines),LB(nMaxLines),LT$(nMaxLines)
+1530 LMT$=SPACE$(nMaxWidth)
+1540 FALSE=(1=2) : TRUE=NOT FALSE
+1550 lLineMod=FALSE : lFileMod=FALSE
+1560 nScanLine=12 :' CURSOR SCAN LINE -- MAKE 7 FOR COLOR TV
+1570 INSCHAR=FALSE : LOCATE ,,1,nScanLine : lInsert=FALSE
+1580 FOR I=2 TO nMaxLines-1 : LF(I)=I+1 : NEXT I : LF(nMaxLines)=0 : LFREE=2
+1590 nCurLin=1 : LF(nCurLin)=0 : LB(nCurLin) = 0 : LT$(nCurLin)=LMT$
+1600 nRow=1 : nCol=1 : nCurLin=1 : T=1 : B = 1
+1610 RETURN
+1620 ' ************* GLOBAL COMMANDS ****************************
+[GLOB2] GOSUB [CTRL C] : GOSUB [UPDTFL] : GOSUB [TOPBOT]
+[GLOB1] nScanLine : LOCATE 10,1
+1650 PRINT "Command choices are..." : PRINT
+1660 PRINT "   1. SAVE the present file"
+1670 PRINT "   2. LOAD another file"
+1680 PRINT "   3. CLEAR the data buffer of all data"
+1690 PRINT "   4. QUIT and return to DOS
+1700 PRINT
+1710 INPUT "Your choice of 1,2,3,4 ";cTemp
+1720 IF cTemp = "" THEN GOSUB [REDRAW] : GOTO [MAINLP]
+1730 cTemp=LEFT$(cTemp,1)
+1740 IF cTemp="1" THEN GOSUB [FILSAV] : GOTO [GLOB1]
+1750 IF cTemp="2" THEN GOSUB [FILLOD] : GOTO [GLOB1]
+1760 IF cTemp="3" THEN GOSUB [CLRBUF] : GOTO [GLOB1]
+1770 IF cTemp="4" THEN GOSUB [QUIPRG] : GOTO [GLOB1]
+1780 GOTO [GLOB1]
+1790 ' ::: the command is: SAVE
+[FILSAV] GOSUB [GETFIL] : OPEN cFileSpec FOR OUTPUT AS #1
+1810 GOSUB [TOPBOT] :'find the top and bottom of the data
+1820 'write all lines, deleting trailing blanks
+1830 WHILE A<>Z
+1840	L$=LT$(A)
+1850	I=nMaxWidth
+1860	WHILE I>1 AND MID$(L$,I,1)=" " : I=I-1 : WEND
+1870	L$=LEFT$(L$,I)
+1880	PRINT#1,L$
+1890	A=LF(A)
+1900 WEND
+1910 CLOSE#1 : lFileMod=FALSE : RETURN
+1920 ' ::: the command is: LOAD
+[FILLOD] GOSUB [CLRBUF] : IF NOT Q THEN RETURN
+1940 GOSUB [GETFIL] : OPEN cFileSpec FOR INPUT AS #1
+1950 'read up to nMaxLines lines, force all to nMaxWidth bytes
+1960 WHILE (LFREE>0) AND NOT (EOF(1))
+1970	LINE INPUT#1,cTemp
+1980	L$=LMT$ : LSET L$ = LEFT$(cTemp,nMaxWidth)
+1990	lLineMod=TRUE
+2000	GOSUB [FD1LIN]
+2010 WEND
+2020 CLOSE#1
+2030 lLineMod=FALSE : lFileMod=FALSE
+2040 nCurLin=1 : nRow=1 : nCol=1 : GOSUB [TOPBOT]
+2050 RETURN
+2060 ' ::: the command is: CLEAR (or clear prior to LOAD)
+[CLRBUF] GOSUB [GETCNF] : IF NOT Q THEN RETURN
+2080 ERASE LT$,LF,LB : GOSUB [CLRVAR] : RETURN
+2090 ' ::: the command is QUIT
+[QUIPRG] GOSUB [GETCNF] : IF Q THEN SYSTEM ELSE RETURN
+2110 ' ::: if the file has been changed, get confirmation
+[GETCNF] IF NOT lFileMod THEN Q=TRUE : RETURN
+2130 PRINT : PRINT "The file has been MODIFIED...!"
+2140 INPUT "... are you SURE you want to do this (Y/N) ";cTemp
+2150 cTemp=LEFT$(cTemp,1)
+2160 Q=(cTemp="y") OR (cTemp="Y") : RETURN
+2170 ' ::: get a filespec for load or save
+[GETFIL] PRINT : PRINT "Give me a filespec";
+2190 IF cFileSpec<>"" THEN PRINT " (";cFileSpec;")";
+2200 INPUT cTemp : IF (cTemp+cFileSpec)="" THEN PRINT : GOTO [GETFIL]
+2210 IF cTemp<>"" THEN cFileSpec=cTemp
+2220 RETURN
+2230 ' ::: find the top(A) and bottom(Z) lines of data
+[TOPBOT] A=nCurLin : WHILE LB(A) : A=LB(A) : WEND
+2250 Z=nCurLin : WHILE LF(Z) : Z=LF(Z) : WEND
+2260 '..minus trailing, empty lines, if any
+2270 WHILE LT$(Z)="" AND Z<>A : Z=LB(Z) : WEND
+2280 RETURN
+

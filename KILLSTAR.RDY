@@ -1,0 +1,25 @@
+    goto [main]
+[ltrim]
+      newltrimrec=parse(ltrimrec,"",""," ",chr(13))
+      ltrimrec=newltrimrec
+      return
+[main]
+    if argc() <> 2
+    then
+        print "usage: killstar <inputfile> <outputfile>"
+        end
+    end if
+    open #1, "r", argv (1)
+    open #2, "w", argv (2)
+    rec=space(255)
+[read] if not eof (1)
+    then
+        line input #1, buf
+        ltrimrec=buf
+        gosub [ltrim]
+        if left(ltrimrec,1)<>"*" then print #2, buf
+        goto [read]
+    end if
+    close #1
+    close #2
+

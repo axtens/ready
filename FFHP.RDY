@@ -1,0 +1,6 @@
+open #1, "w","lpt2"
+print #1, chr(12);
+close #1
+end
+
+

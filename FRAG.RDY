@@ -1,0 +1,43 @@
+       offset=16
+       if argc () < 1
+       then
+           print "Please specify drive:"
+           print " FRAG <d:>"
+           end
+       end if
+       drv = left(argv (1), 1)
+       proto=drv+":FRAGMENT."
+       on error goto [err]
+       fname=proto+"0"
+       open #1,"w",fname
+       close #1
+       fname=proto+"1"
+       open #1,"w",fname
+       close #1
+       dim vec(2)
+       vec(1)=0
+       vec(2)=0
+       i=0
+[1]    i=NOT i
+       OPEN #1,"a",proto+i
+       for x = 1 to offset
+           print #1, copy("?",126)
+       next x
+       close #1
+
+       j = i+1
+       vec(j)=vec(j)+offset*128
+
+       if j=1
+       then
+          column 1
+       else
+           column 10
+       end if
+
+       print vec(j);
+
+       goto [1]
+[err]  print "Could not open ";fname
+       end
+

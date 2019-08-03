@@ -1,0 +1,51 @@
+10 'GENPATCH - generates patches for PATCHER.BAS
+20 'Copyright 1983 - Data Base Decisions, Atlanta, GA
+30 'If offset is greater than 32,767, BAIC 2.00 must be used.
+40 'DOS 2.00 should be used. If this is not possible, use RAM disk.
+50 CLS
+		DIM byte AS DOUBLE
+		DIM newval AS INTEGER
+		DIM oldval AS INTEGER
+		DIM newsum AS DOUBLE
+70 CLEAR
+90 INPUT "Old version of file"; ofil$
+120 OPEN ofil$ FOR BINARY AS 1
+		DIM orec AS STRING * 1
+140 INPUT "New version of file"; nfil$
+		OPEN nfil$ FOR BINARY AS 2
+		DIM nrec AS STRING * 1
+190 INPUT "File in which to save patches"; DIF$
+200 TMP$ = "GENPATCH.TMP"
+210 OPEN "o", #3, TMP$  'write to temp file
+		CLS
+220 FOR byte = 1 TO LOF(2)         'compare the bytes
+230 GET 1, byte, orec
+240 GET 2, byte, nrec
+		IF orec = nrec THEN
+				LOCATE 1, 1
+				PRINT byte
+		ELSE
+				oldval = ASC(orec)        'convert to ascii
+				newval = ASC(nrec)
+				PRINT #3, byte; ","; oldval; ","; newval
+				newsum = newsum + byte + oldval + newval'keep checksum
+				WHILE newsum > 32767
+						newsum = newsum - 32767
+				WEND
+
+		END IF
+
+NEXT byte
+330 CLOSE
+340 OPEN "i", #1, TMP$  'copy temp file to patch file
+350 OPEN "o", #2, DIF$
+360 PRINT "Comments to be put in "; DIF$; : INPUT ""; COMMENT$
+370 PRINT #2, ofil$; ","; newsum; ","; CHR$(34); COMMENT$; CHR$(34)'add record
+380 IF EOF(1) THEN 420
+390 LINE INPUT #1, X$
+400 PRINT #2, X$
+410 GOTO 380    'copy another record across
+420 CLOSE
+430 KILL TMP$   'delete temp file
+440 END
+

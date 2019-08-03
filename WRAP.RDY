@@ -1,0 +1,40 @@
+    if argc() <> 3
+       then
+          print "usage: wrap <wrap-point> <inputfile> <outputfile>"
+          end
+    end if
+    wrappoint=argv (1)
+    wraplimit=int(wrappoint/4)
+    inputfile=argv (2)
+    outputfile=argv (3)
+    open #1, "r",inputfile
+    open #2, "w",outputfile
+[read] if not eof(1)
+    then
+       line input #1, rec
+[TestLEN] reclen=len(rec)
+       if reclen>wrappoint
+       then
+           recpos=wrappoint
+[Scan] if mid(rec,recpos,1)<>space(1) and recpos>wraplimit
+           then
+               recpos=recpos-1
+               goto [Scan]
+           end if
+           if recpos<=wraplimit
+           then
+               print #2, rec
+           else
+               print #2,left(rec,recpos)
+               rec="- "+mid(rec,recpos)
+               goto [TestLEN]
+           end if
+       else
+           print #2,rec
+       end if
+       goto [read]
+    end if
+    close #1
+    close #2
+    end
+

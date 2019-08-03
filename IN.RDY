@@ -1,0 +1,138 @@
+	NULL = ""
+	FALSE=0
+	TRUE = NOT FALSE
+
+	pcount = argc ()
+	if pcount < 2
+	then
+		print "IN <command> <wildspec>"
+		print
+		print "<command> must contain a valid commandline."
+		print "<command> may also contain the following metasymbols,"
+		print "translation of which will involve data drawn from the"
+		print "<wildspec>."
+		print
+		print "$f - full filename"
+		print "$n - file name"
+		print "$e - file extension"
+		print "$p - path"
+		print "$d - drive"
+		end
+	end if
+
+	command = argv (1)
+
+
+	lc=0
+
+	dim filelist(1000)
+	for i = 1 to 1000
+		filelist(i)=NULL
+	next i
+
+	slc=0
+
+	dim swaplist(10,2)
+	for i = 1 to 10
+		swaplist(i,1)=NULL
+		swaplist(i,2)=NULL
+	next i
+
+	for i = 2 to pcount
+		filelist(i-1)=argv (i)
+*		 print filelist(i-1)
+	next i
+	for i = 1 to pcount-1
+		rec=filelist(i)
+*		 print rec
+		sym="$F"
+		def=rec
+		gosub [add]
+
+		if mid(rec,2,1)=":"
+		then
+			drive=left(rec,2)
+			rec=mid(rec,3,255)
+		else
+			drive=NULL
+		end if
+		sym="$D"
+		def=drive
+		gosub [add]
+
+		for j = len(rec) to 1 step -1
+			if mid(rec,j,1)="\"
+			then
+				goto [2]
+			end if
+		next j
+[2]		if mid(rec,j,1)="\"
+		then
+			path=left(rec,j)
+			rec=mid(rec,j+1,255)
+		else
+			path=NULL
+		end if
+		sym="$P"
+		def=path
+		gosub [add]
+
+		pos=instr(rec,".")
+		if pos>0
+		then
+			name=left(rec,pos-1)
+			ext=mid(rec,pos,255)
+		else
+			name=rec
+			ext=NULL
+		end if
+		sym="$N"
+		def=name
+		gosub [add]
+		sym="$E"
+		def=ext
+		gosub [add]
+
+*		 print fullspec,drive,path,name,ext
+*		 print command
+		swaprec=command
+		gosub [SWP]
+*		 print command
+		shell swaprec
+		slc=0
+	next i
+	end
+
+[add]	slc=slc+1
+		swaplist(slc,1)=sym
+		swaplist(slc,2)=def
+*		 print "adding",sym,def,slc
+		return
+
+[SWP]	pos=0
+*		 print "slc ";slc
+		if slc=0
+		then
+*			 print "slc empty"
+			return
+		end if
+		for si = 1 to slc
+*			 print "si ";si
+*			 print swaplist(si,1)
+[sl2]		pos=instr(1,swaprec,swaplist(si,1))
+*			 print "pos ";pos
+			if pos>0
+			then
+				marker=swaplist(si,1)
+				repl=swaplist(si,2)
+				lef=left(swaprec,pos-1)
+				cutpoint=pos+len(marker)
+				rig=mid(swaprec,cutpoint)
+*				 print swaprec,marker,repl,lef,cutpoint,rig
+				swaprec=lef+repl+rig
+				goto [sl2]
+			end if
+		next si
+		return
+
+

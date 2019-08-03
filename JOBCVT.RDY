@@ -1,0 +1,20 @@
+	NULL = ""
+	TILDE = "~"
+	open #1, "r", "joblog.dat"
+	open #2, "w", "joblog2.dat"
+[1] if not eof(1)
+	then
+
+		line input #1, rec
+		ss=parse(rec,NULL,NULL,NULL,TILDE)
+		projname=parse(rec,NULL,NULL,NULL,TILDE)
+		dt=parse(rec,NULL,NULL,NULL,TILDE)
+		tm=rec
+		timer=left(tm,2)*60+mid(tm,4,2)*1
+		print #2,ss;TILDE;projname;TILDE;dt;TILDE;timer
+		goto [1]
+	end if
+	close #1
+	close #2
+	end
+

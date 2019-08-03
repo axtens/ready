@@ -1,0 +1,37 @@
+      nul=""
+      setting=0
+      on error goto [err]
+      open #1, "r", "c:\config.sys"
+[1]   if not eof(1)
+      then
+         line input #1, rec
+         if instr(rec,"files=") <> 0
+         then
+             gosub [2]
+         end if
+         if instr(rec,"FILES=") <> 0
+         then
+             gosub [2]
+         end if
+         if instr(rec,"FILES =") <> 0
+         then
+             gosub [2]
+         end if
+         if instr(rec,"files =") <> 0
+         then
+             gosub [2]
+         end if
+         goto [1]
+      end if
+      if setting=0 then print "No FILES= statement in CONFIG.SYS"
+      end
+
+[2]   tmp=parse(rec,nul,nul,nul,"=")
+      print "Current setting of FILES= is ";rec
+      setting=1
+      end
+
+[err] print "Could not open C:\CONFIG.SYS"
+      end
+
+

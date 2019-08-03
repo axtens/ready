@@ -1,0 +1,374 @@
+	NULL = ""
+	FALSE = 0
+	TRUE = NOT FALSE
+
+	failonerr=FALSE
+	success=TRUE
+	lc=0
+	endit=FALSE
+
+	dim swaplist(100,2)
+	for i = 1 to 9
+		swaplist(i,1)="%"+i
+		swaplist(i,2)=NULL
+	next i
+	for i = 10 to 100
+		swaplist(i,1)=NULL
+		swaplist(i,2)=NULL
+	next i
+
+
+
+	cmdfile=NULL
+	p1 = argv (1)
+
+*SET DEBUG FLAG IF P2 = '/D'
+	debug = ( argv (2) = "/D" or argv (2) = "/d" )
+	if p1 = "/D"
+	then
+		debug=TRUE
+		p1 = NULL
+	end if
+
+*LOAD COMMANDLINE PARAMETERS INTO SWAPLIST
+	i = argc ()
+	for ii = 1 to i
+		swaplist(ii,1)="%"+ii
+		swaplist(ii,2)=argv (ii)
+		if debug
+		then
+			print "swaplist(";ii;",1)=";swaplist(ii,1)
+			print "swaplist(";ii;",2)=";swaplist(ii,2)
+		end if
+	next ii
+	lc = 9
+
+	if p1=NULL
+	then
+		cmdrec="*GETLINE $x Where is the UCSETUP.UCS file? "
+		gosub [First Second]
+		gosub [getline]
+		cmdrec = "*REQUIRE $x\UCSETUP.UCS"
+		gosub [swapper]
+		gosub [First Second]
+		gosub [require]
+		if not success then end
+		cmdfile = secondpart
+		swaplist(1,2)=cmdfile
+	else
+		cmdrec="*REQUIRE %1"
+		gosub [swapper]
+		gosub [First Second]
+		gosub [require]
+		if not success then end
+		cmdfile = p1
+	end if
+
+	gosub [setup]
+	open #1, "r", cmdfile
+	dim cmdvec(100)
+	cmdcount=0
+[1] if not eof(1)
+	then
+		line input #1, rec
+		if rec=NULL then goto [1]
+		cmdcount=cmdcount+1
+		cmdvec(cmdcount)=parse(rec,NULL,NULL," ",chr(13))
+		goto [1]
+	end if
+	close #1
+	endit=FALSE
+	for cmdcnt = 1 to cmdcount
+		success = TRUE
+		cmdrec = cmdvec(cmdcnt)
+		failrec = cmdrec
+		gosub [swapper]
+		if debug then print cmdrec
+		gosub [First Second]
+		ucaserec=firstpart
+		gosub [ucase]
+		firstpart=ucaserec
+		for jj = 1 to funcmax
+			if firstpart = functions(jj,1)
+			then
+				if debug then print "gosub "+functions(jj,2)
+				execute "gosub "+functions(jj,2)
+				goto [cont]
+			end if
+		next jj
+		print firstpart;" not recognized."
+		success = FALSE
+[cont]
+		if not success
+		then
+			if failonerr
+			then
+				goto [endall]
+			else
+				secondpart = "Command {"+failrec+"} failed. "
+				gosub [message]
+			end if
+		end if
+		if endit = TRUE
+		then
+			goto [endall]
+		end if
+	next cmdcnt
+
+[endall]
+	end
+
+
+[First Second]
+
+	i = 1
+	ct = NULL
+	quoter="'`"+chr(34)
+	spacer=CHR(32)+CHR(9)
+	firstrec=parse(cmdrec,NULL,NULL," ",chr(13))
+
+	q = instr(quoter,MID(firstrec,i,1))
+	if q = 0
+	then
+		'is not quoted
+[noqt]	if INSTR(spacer,MID(firstrec,i,1)) = 0 and (i <= LEN(firstrec))
+		then
+			i = i + 1
+			goto [noqt]
+		end if
+		if instr(spacer,MID(firstrec,i,1)) = 0
+		then
+			firstpart = firstrec
+			secondpart= NULL
+		else
+			firstpart = LEFT(firstrec,i-1)
+			secondpart= MID(firstrec,i+1)
+		end if
+	else
+		i = i+1
+		cQ=MID(quoter,q,1)
+[q]				if (MID(firstrec,i,1) <> cQ) and i <= LEN(firstrec)
+		then
+			i = i+1
+			goto [q]
+		end if
+		if MID(firstrec,i,1) <> MID(quoter,q,1)
+		then
+			firstpart = MID(firstrec,2,i)
+			secondpart = NULL
+		else
+			firstpart = MID(firstrec,2,i-2)
+			secondpart = MID(firstrec,i+1)
+		end if
+	end if
+return
+
+[getkey]   cmdrec=secondpart
+			gosub [First Second]
+			if secondpart = NULL then secondpart = "Please supply value for "+firstpart+": "
+			print secondpart;
+			c=getkey()
+			swaptemp = chr( c & 0xff)
+			print swaptemp
+			swaptemp = firstpart+","+swaptemp
+			gosub [addtolist]
+			success=TRUE
+			return
+
+[getline]		cmdrec=secondpart
+			gosub [First Second]
+			if secondpart = NULL then secondpart = "Please supply value for "+firstpart+": "
+			print secondpart;
+			line input swaptemp
+			swaptemp = firstpart+","+swaptemp
+			gosub [addtolist]
+			success=TRUE
+			return
+
+[yesno]			cmdrec=secondpart
+			gosub [First Second]
+			msg=firstpart
+			if secondpart=NULL
+			then
+				YES=1
+				NO=2
+			else
+				cmdrec=secondpart
+				gosub [First Second]
+				if secondpart = NULL
+				then
+					YES=1
+					NO=firstpart
+				else
+					YES=firstpart
+					NO=secondpart
+				end if
+			end if
+			print msg;
+[yesno get] c=chr(getkey())
+			if c="N" or c="n"
+			then
+				cmdcnt = cmdcnt + NO
+				print c
+				goto [yesno ok]
+			end if
+			if c="Y" or c="y"
+			then
+				cmdcnt = cmdcnt + YES
+				print c
+				goto [yesno ok]
+			end if
+			beep
+			goto [yesno get]
+[yesno ok]		success=TRUE
+			return
+
+[message]		print secondpart;" Press any key...";
+			c=getkey()
+			print
+			success=TRUE
+			return
+
+[require]		if access(secondpart)=FALSE
+			then
+				print "Could not find ";secondpart;". Press any key...";
+				c=getkey()
+				print
+				success=FALSE
+			else
+				success=TRUE
+			end if
+			return
+
+[move]			cmdrec=secondpart
+			gosub [First Second]
+			if secondpart = NULL
+			then
+				secondpart = "Cannot move something to nowhere."
+				gosub [message]
+				success = FALSE
+			else
+				shell "move "+firstpart+" "+secondpart
+				success = TRUE
+			end if
+			return
+
+[execute]		shell secondpart
+			success = TRUE
+			return
+
+
+[endit]			endit=TRUE
+			success = TRUE
+			return
+
+[clear screen]
+			cls
+			success = TRUE
+			return
+
+[onerror]		ucaserec=secondpart
+			gosub [ucase]
+			if ucaserec="FAIL"
+			then
+				failonerr=TRUE
+			else
+				failonerr=FALSE
+			end if
+			success = TRUE
+			return
+
+[readme]		if access(secondpart)=FALSE
+			then
+				success = FALSE
+			else
+				shell "edit "+secondpart
+				success = TRUE
+			end if
+			return
+
+[display]		print secondpart
+			success = TRUE
+			return
+
+
+[addtolist] lc=lc+1
+			atemp=parse(swaptemp)
+			btemp=parse(swaptemp)
+			swaplist(lc,1)=atemp
+			swaplist(lc,2)=btemp
+			if debug
+			then
+				print "swaplist(";lc;",1)=";swaplist(lc,1)
+				print "swaplist(";lc;",2)=";swaplist(lc,2)
+			end if
+			return
+
+[swapper]		pos=0
+			if lc=0 then return
+			for i = 1 to lc
+[swaploop]				pos=instr(cmdrec,swaplist(i,1))
+				if pos>0
+				then
+					marker=swaplist(i,1)
+					repl=swaplist(i,2)
+					lef=left(cmdrec,pos-1)
+					cutpoint=pos+len(marker)
+					'if len(repl)=1 then cutpoint=cutpoint+1
+					rig=mid(cmdrec,cutpoint)
+					if debug
+					then
+						print "pos=";pos
+						print "cutpoint=";cutpoint
+						print "lef=";lef
+						print "repl=";repl
+						print "rig=";rig
+					end if
+					cmdrec=lef+repl+rig
+					goto [swaploop]
+				end if
+			next i
+			return
+
+[setup]
+		dim functions(20,2)
+
+		functions( 1,1)="*GETKEY"
+		functions( 1,2)=[getkey]
+		functions( 2,1)="*YESNO"
+		functions( 2,2)=[yesno]
+		functions( 3,1)="*MESSAGE"
+		functions( 3,2)=[message]
+		functions( 4,1)="*REQUIRE"
+		functions( 4,2)=[require]
+		functions( 5,1)="*MOVE"
+		functions( 5,2)=[move]
+		functions( 6,1)="*EXECUTE"
+		functions( 6,2)=[execute]
+		functions( 7,1)="*END"
+		functions( 7,2)=[endit]
+		functions( 8,1)="*CLEARSCREEN"
+		functions( 8,2)=[clear screen]
+		functions( 9,1)="*GETLINE"
+		functions( 9,2)=[getline]
+		functions(10,1)="*ONERROR"
+		functions(10,2)=[onerror]
+		functions(11,1)="*README"
+		functions(11,2)=[readme]
+		functions(12,1)="*DISPLAY"
+		functions(12,2)=[display]
+
+
+		funcmax = 12
+		return
+[ucase]
+		ucaselen=len(ucaserec)
+		for ui=1 to ucaselen
+			c=mid(ucaserec,ui,1)
+			if c>="a" and c<="z"
+			then
+				ucaserec=strovr(ucaserec,ui,chr( asc(c) - 32))
+			end if
+		next ui
+		return
+

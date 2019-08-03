@@ -1,0 +1,31 @@
+    if argc() <> 2
+       then
+          print "usage: Nlist <file> <dest>"
+          end
+    end if
+    sname=argv (1)
+    dname=argv (2)
+    if access(sname)=0
+    then
+        print "Cannot open ";sname
+        end
+    end if
+    open #1, "r", sname
+    open #2, "w", dname
+    c=0
+[1] if not eof (1)
+    then
+        line input #1, buf
+        c=c+1
+        column 1
+        print c;
+        oc=space(4-len(c))+c+": "
+        print #2,oc;buf
+        goto [1]
+    end if
+    close #1
+    close #2
+    print " lines processed."
+    end
+
+
